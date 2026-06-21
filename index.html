@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>K-OTT Premium</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #1ed760; /* Dark Green Default */
+            --bg-dark: #0a0a0a; 
+            --bg-card: #141414; 
+            --text-color: #ffffff; 
+            --text-muted: #a0a0a0; 
+            --border-color: #333333;
+        }
+        [data-theme="blue"] { --primary: #1da1f2; }
+        [data-theme="red"] { --primary: #e50914; }
+        [data-theme="purple"] { --primary: #9b59b6; }
+        [data-theme="orange"] { --primary: #ff9800; }
+        [data-theme="pink"] { --primary: #e91e63; }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-color); overflow-x: hidden; }
+        
+        /* Splash & Auth */
+        #splashScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s; }
+        .splash-logo { width: 150px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        
+        .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .auth-card { background: var(--bg-card); padding: 40px; border-radius: 8px; width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--border-color); }
+        .auth-input { width: 100%; padding: 15px; margin-bottom: 20px; background: #222; border: 1px solid var(--border-color); color: #fff; border-radius: 4px; font-size: 16px; text-align: center; font-weight: bold; letter-spacing: 2px; }
+        .auth-input:focus { outline: none; border-color: var(--primary); }
+        .auth-btn { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; transition: opacity 0.2s; }
+        .auth-btn:hover { opacity: 0.9; }
+
+        /* App Header Controls (Matching Screenshot) */
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: rgba(10,10,10,0.95); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1a1a1a; }
+        .logo { background: none; border: none; cursor: pointer; display: flex; align-items: center; }
+        .logo img { height: 40px; border-radius: 4px; border: 1px solid var(--border-color); }
+        .header-controls { display: flex; gap: 10px; align-items: center; }
+        
+        .theme-selector { 
+            background: transparent; 
+            color: var(--text-muted); 
+            border: 1px solid var(--border-color); 
+            padding: 8px 10px; 
+            border-radius: 4px; 
+            outline: none; 
+            cursor: pointer; 
+            font-weight: 500;
+        }
+        .admin-btn-nav { 
+            background: transparent; 
+            color: var(--primary); 
+            border: 1px solid var(--primary); 
+            padding: 8px 15px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+            font-weight: bold;
+            transition: 0.3s; 
+        }
+        .admin-btn-nav:hover { background: rgba(30, 215, 96, 0.1); }
+
+        /* Hero Slider */
+        .hero-slider { position: relative; width: 100%; height: 35vh; min-height: 250px; background: #000; overflow: hidden; }
+        .hero-slider img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .hero-overlay-gradient { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; background: linear-gradient(to top, var(--bg-dark) 0%, transparent 100%); }
+        .hero-content { position: absolute; bottom: 30px; left: 20px; right: 20px; }
+        .hero-content h1 { font-size: 2.2rem; margin-bottom: 15px; font-weight: 900; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+        
+        #play-button { 
+            padding: 10px 20px; 
+            background: var(--primary); 
+            color: #fff; 
+            border: none; 
+            border-radius: 4px; 
+            font-weight: bold; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(30, 215, 96, 0.3);
+        }
+
+        /* Content Sections (Matching Screenshot) */
+        .content-section { padding: 15px 20px 5px 20px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        
+        .section-title { 
+            font-size: 1.3rem; 
+            color: #fff; 
+            border-left: 4px solid var(--primary); 
+            padding-left: 10px; 
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        
+        .see-all { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.9rem; font-weight: 500; }
+        .see-all:hover { opacity: 0.8; }
+
+        .movie-row { display: flex; gap: 15px; overflow-x: auto; scrollbar-width: none; padding-bottom: 5px; }
+        .movie-row::-webkit-scrollbar { display: none; }
+        
+        /* Movie Cards */
+        .movie-card { 
+            min-width: 140px; 
+            width: 140px; 
+            background: #1a1a1a; 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            cursor: pointer; 
+            text-align: left; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .movie-card img { 
+            width: 100%; 
+            height: 120px; 
+            object-fit: cover; 
+            border-bottom: 1px solid var(--border-color);
+        }
+        .movie-card .title { 
+            color: #fff; 
+            font-size: 0.85rem; 
+            padding: 10px; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            font-weight: 600; 
+            text-align: center;
+        }
+
+        /* Language Pills */
+        .lang-card { 
+            min-width: 100px; 
+            padding: 10px 15px; 
+            background: transparent; 
+            color: #fff; 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-align: center; 
+        }
+        .lang-card:hover { border-color: var(--primary); }
+
+        /* The short green underline below sections */
+        .section-divider {
+            width: 60px;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 2px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+
+        /* Filter Grid & Player */
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; padding: 20px; }
+        .back-btn { background: transparent; color: #fff; border: 1px solid #fff; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin: 20px; font-weight: bold; }
+        
+        #player-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
+        #video-frame { width: 100%; height: 100%; border: none; }
+
+        @media (max-width: 768px) {
+            .hero-content h1 { font-size: 1.8rem; }
+            .movie-card { min-width: 130px; width: 130px; }
+            .movie-card img { height: 100px; }
+        }
+    </style>
+</head>
+<body tabindex="-1">
+
+    <div id="splashScreen"><img src="logo.png" alt="K-OTT Logo" class="splash-logo" onerror="this.onerror=null; this.style.display='none';"></div>
+
+    <div id="authSection" class="auth-container" style="display: none;">
+        <div class="auth-card">
+            <img src="logo.png" alt="K-OTT Logo" style="height: 65px; margin-bottom: 1rem; object-fit: contain; border-radius: 4px;" onerror="this.style.display='none'">
+            <h2 style="color:var(--primary); margin-bottom:0.5rem;">K-OTT Activation</h2>
+            <p style="color:var(--text-color); font-size:0.95rem; margin-bottom:1.5rem;" id="auth-msg">Enter the 10-digit coupon code.</p>
+            <input type="text" id="activationCode" class="auth-input" placeholder="ENTER COUPON CODE" tabindex="0">
+            <button class="auth-btn" tabindex="0" onclick="activateDevice()">Activate Device</button>
+        </div>
+    </div>
+
+    <div id="appSection" style="display: none;">
+        <header class="app-header">
+            <button class="logo" tabindex="0" onclick="showView('home')">
+                <img src="logo.png" alt="K-OTT" onerror="this.onerror=null; this.src=''; this.alt='K-OTT'; this.style.fontSize='22px'; this.style.fontWeight='900'; this.style.color='var(--primary)';">
+            </button>
+            <div class="header-controls">
+                <select class="theme-selector" id="theme-dropdown" tabindex="0" onchange="changeTheme(this.value)">
+                    <option value="green">Dark Green</option><option value="blue">Dark Blue</option>
+                    <option value="red">Dark Red</option><option value="purple">Dark Purple</option>
+                    <option value="orange">Dark Orange</option><option value="pink">Dark Pink</option>
+                </select>
+                <button class="admin-btn-nav" tabindex="0" onclick="logout()">Log Out</button>
+            </div>
+        </header>
+
+        <div id="home-view">
+            <div class="hero-slider">
+                <img id="slider-img" src="" alt="Hero Background">
+                <div class="hero-overlay-gradient"></div>
+                <div class="hero-content">
+                    <h1 id="slider-title">Loading...</h1>
+                    <button id="play-button" tabindex="0">Watch Now</button>
+                </div>
+            </div>
+
+            <div id="categories-container"></div>
+            
+            <div class="content-section" style="border-top: 1px solid var(--border-color); padding-top: 2rem; margin-top: 2rem; text-align:center;">
+                <p style="color:var(--text-color); margin-bottom:1.5rem; font-size: 1rem;">
+                    Active Tier: <strong id="tierDisplay" style="color:var(--primary); margin-right: 15px;"></strong>
+                    Valid Until: <strong id="expiryDisplay" style="color:var(--primary);"></strong>
+                </p>
+                <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 600px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+                    <strong>Note:</strong> This app does not maintain any content. It only links to third-party links which are openly available on the internet. If there are any objections, the content will be removed immediately. Please mail to <a href="mailto:kancharlamediapvtltd@gmail.com" style="color: var(--primary); text-decoration: none;">kancharlamediapvtltd@gmail.com</a>.
+                </p>
+            </div>
+        </div>
+
+        <div id="filter-view" style="display: none;">
+            <button class="back-btn" tabindex="0" onclick="showView('home')">Back</button>
+            <h2 class="section-title" id="filter-title" style="margin: 0 20px;">Movies</h2>
+            <div class="movie-grid" id="filter-grid"></div>
+        </div>
+
+        <div id="player-view" style="display: none;">
+            <button class="back-btn" style="position: absolute; top:10px; left:10px; z-index: 1001; background: rgba(0,0,0,0.5);" tabindex="0" onclick="showView('home')">Close Player</button>
+            <iframe id="video-frame" src="" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <script>
+const client = supabase.createClient('https://xwhakrgvhqtrvwjqtwwb.supabase.co', 'sb_publishable__gvaKDv5aVC_TLJ2LvMIZA_wKdShgMv');
+        
+        let device = JSON.parse(localStorage.getItem('kott_device'));
+        if (!device) { device = { id: crypto.randomUUID(), role: null }; localStorage.setItem('kott_device', JSON.stringify(device)); }
+
+        let savedTheme = localStorage.getItem('kott_theme') || 'green';
+        changeTheme(savedTheme);
+        function changeTheme(themeName) {
+            document.body.setAttribute('data-theme', themeName);
+            localStorage.setItem('kott_theme', themeName);
+            const dropdown = document.getElementById('theme-dropdown'); if(dropdown) dropdown.value = themeName;
+        }
+
+        async function checkAccess() {
+            if (device.role === 'user') {
+                const { data } = await client.from('devices').select('expiry_date, current_tier, is_active').eq('id', device.id).single();
+                
+                if (data && new Date(data.expiry_date) > new Date() && data.is_active !== false) {
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('appSection').style.display = 'block';
+                    
+                    showView('home'); 
+                    
+                    document.getElementById('expiryDisplay').innerText = new Date(data.expiry_date).toLocaleDateString();
+                    
+                    window.userTier = data.current_tier || 'Basic';
+                    let screens = window.userTier === 'Premium' ? '4 Screens' : (window.userTier === 'Standard' ? '2 Screens' : '1 Screen');
+                    document.getElementById('tierDisplay').innerText = `${window.userTier} (${screens})`;
+                    
+                    fetchMovieData(); 
+                } else {
+                    document.getElementById('authSection').style.display = 'flex';
+                    document.getElementById('appSection').style.display = 'none';
+                    if (data && data.is_active === false) {
+                        document.getElementById('auth-msg').innerText = "Logged out: Your screen limit was reached by another device.";
+                    } else {
+                        document.getElementById('auth-msg').innerText = "Subscription Expired. Contact your provider.";
+                    }
+                }
+            } else {
+                document.getElementById('authSection').style.display = 'flex'; document.getElementById('appSection').style.display = 'none';
+            }
+        }
+
+        async function activateDevice() {
+            const code = document.getElementById('activationCode').value.trim();
+            if (!code) return alert("Please enter a code.");
+            
+            const { data, error } = await client.rpc('activate_device', { p_device_id: device.id, p_code: code });
+            if (error || !data.success) return alert(error?.message || data.error);
+            if (data.role !== 'user') return alert('Please enter a User code.');
+            
+            if (data.device_id) device.id = data.device_id;
+            device.role = 'user'; localStorage.setItem('kott_device', JSON.stringify(device));
+            
+            checkAccess();
+        }
+
+        // Instant Logout without popup
+        async function logout() { 
+            await client.rpc('user_logout', { p_device_id: device.id });
+            localStorage.removeItem('kott_device'); 
+            location.reload(); 
+        }
+
+        let moviesData = [], sliderInterval;
+
+        function showView(view) {
+            ['home-view', 'filter-view', 'player-view'].forEach(v => document.getElementById(v).style.display = 'none');
+            document.getElementById(view + '-view').style.display = 'block';
+            if (view !== 'player') document.getElementById('video-frame').src = ""; window.scrollTo(0, 0);
+        }
+        
+        function openPlayer(link) { 
+            showView('player'); 
+            document.getElementById('video-frame').src = link.includes('?') ? link + '&autoplay=1' : link + '?autoplay=1'; 
+        }
+        
+        async function fetchMovieData() { 
+            const { data, error } = await client.from('movies').select('*'); 
+            if (!error && data) { 
+                if (window.userTier !== 'Premium') {
+                    moviesData = data.filter(m => {
+                        const cat = m.category.toLowerCase();
+                        return cat !== 'live movies' && cat !== 'live web series';
+                    });
+                } else {
+                    moviesData = data; 
+                }
+                renderOTT(); 
+            } 
+        }
+
+        function renderOTT() {
+            if(sliderInterval) clearInterval(sliderInterval);
+            const trailers = moviesData.filter(m => m.category.toLowerCase() === 'trailers');
+            let currentSlide = 0;
+            function updateSlider() {
+                if (trailers.length === 0) return;
+                document.getElementById('slider-img').src = trailers[currentSlide].image;
+                document.getElementById('slider-title').innerText = trailers[currentSlide].title;
+                document.getElementById('play-button').onclick = () => openPlayer(trailers[currentSlide].link);
+                currentSlide = (currentSlide + 1) % trailers.length;
+            }
+            if(trailers.length > 0) { updateSlider(); sliderInterval = setInterval(updateSlider, 6000); }
+
+            const categoryOrder = ["trailers", "k-apps", "k-channels", "k-news", "k-activities", "live movies", "new movies", "old movies", "live web series", "web series", "serials", "devotional"];
+            const dbCategories = [...new Set(moviesData.map(m => m.category.toLowerCase()))];
+            let orderedCategories = [];
+            categoryOrder.forEach(cat => { if (dbCategories.includes(cat)) orderedCategories.push(cat); });
+            dbCategories.forEach(cat => { if (!categoryOrder.includes(cat)) orderedCategories.push(cat); });
+
+            const catContainer = document.getElementById('categories-container'); catContainer.innerHTML = '';
+
+            const languages = [...new Set(moviesData.map(m => m.language).filter(Boolean))];
+            if(languages.length > 0) {
+                const langSection = document.createElement('div'); langSection.className = 'content-section';
+                langSection.innerHTML = `
+                    <div class="section-header"><h2 class="section-title">Languages</h2></div>
+                    <div class="movie-row" id="languages-container"></div>
+                    <div class="section-divider"></div>
+                `;
+                catContainer.appendChild(langSection);
+                const langBox = document.getElementById('languages-container');
+                languages.forEach(lang => {
+                    const btn = document.createElement('button'); btn.className = 'lang-card'; 
+                    // Capitalize first letter
+                    btn.innerText = lang.charAt(0).toUpperCase() + lang.slice(1); 
+                    btn.tabIndex = 0;
+                    btn.onclick = () => openFilter('lang', lang); langBox.appendChild(btn);
+                });
+            }
+
+            orderedCategories.forEach(cat => {
+                if(cat === 'trailers') return;
+                const catMovies = moviesData.filter(m => m.category.toLowerCase() === cat);
+                if (catMovies.length === 0) return;
+                
+                // Capitalize properly for display (e.g. k-apps -> K-Apps)
+                const displayTitle = cat.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
+
+                const section = document.createElement('div'); section.className = 'content-section';
+                section.innerHTML = `
+                    <div class="section-header">
+                        <h2 class="section-title">${displayTitle}</h2>
+                        <button class="see-all" tabindex="0" onclick="openFilter('cat', '${cat}')">See All ></button>
+                    </div>
+                    <div class="movie-row" id="row-${cat.replace(/\s+/g, '-')}"></div>
+                    <div class="section-divider"></div>
+                `;
+                catContainer.appendChild(section);
+                const row = document.getElementById(`row-${cat.replace(/\s+/g, '-')}`);
+                
+                catMovies.forEach(movie => {
+                    const card = document.createElement('button'); card.className = 'movie-card'; card.tabIndex = 0;
+                    card.onclick = () => {
+                        if (movie.category.toLowerCase() === 'k-apps') window.open(movie.link, '_blank');
+                        else openPlayer(movie.link);
+                    };
+                    card.innerHTML = `<img src="${movie.image}" loading="lazy"><div class="title">${movie.title}</div>`;
+                    row.appendChild(card);
+                });
+            });
+        }
+
+        function openFilter(type, value) {
+            showView('filter');
+            // Format title
+            const formattedVal = value.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
+            document.getElementById('filter-title').innerText = formattedVal;
+            
+            const grid = document.getElementById('filter-grid'); grid.innerHTML = '';
+            
+            moviesData.filter(m => type === 'lang' ? m.language.toLowerCase() === value.toLowerCase() : m.category.toLowerCase() === value.toLowerCase())
+            .forEach(movie => {
+                const card = document.createElement('button'); card.className = 'movie-card'; card.tabIndex = 0;
+                card.onclick = () => {
+                    if (movie.category.toLowerCase() === 'k-apps') window.open(movie.link, '_blank');
+                    else openPlayer(movie.link);
+                };
+                card.innerHTML = `<img src="${movie.image}" loading="lazy"><div class="title">${movie.title}</div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splashScreen');
+                splash.style.opacity = '0';
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    checkAccess(); 
+                }, 500); 
+            }, 2500); 
+        });
+    </script>
+</body>
+</html>
